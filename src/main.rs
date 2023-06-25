@@ -26,6 +26,12 @@ fn main() {
                 .takes_value(true)
                 .help("The path to the directory containing the libraries (ex: ./libs)."),
         )
+        .arg(
+            Arg::with_name("no_extract_xml")
+                .long("no-extract-xml")
+                .short("n")
+                .help("Do not extract the xml files from the apk."),
+        )
         .get_matches();
 
     let file_path = matches.value_of("file").unwrap();
@@ -33,6 +39,7 @@ fn main() {
     let dec = Decompiler::new(
         apk_path,
         matches.value_of("libs_dir").unwrap().to_owned().into(),
+        matches.is_present("no_extract_xml"),
     );
 
     if let Err(e) = dec.start() {
