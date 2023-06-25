@@ -1,6 +1,7 @@
 use console::style;
 use std::env;
 use std::fs;
+use std::io::BufRead;
 use std::io::{copy, Error, ErrorKind, Result};
 use std::path::PathBuf;
 use std::process::Command;
@@ -8,20 +9,19 @@ use std::process::Command;
 pub struct Decompiler {
     apk_path: PathBuf,
     current_dir: PathBuf,
-    exe_dir: PathBuf,
+    libs_dir: PathBuf,
     output_path: PathBuf,
 }
 
 impl Decompiler {
-    pub fn new(apk_path: PathBuf) -> Self {
+    pub fn new(apk_path: PathBuf, libs_dir: PathBuf) -> Self {
         let current_dir = env::current_dir().unwrap();
-        let mut exe_dir = env::current_exe().unwrap();
-        exe_dir.pop();
+        let libs_dir = libs_dir.canonicalize().unwrap();
         let output_path = current_dir.join("output");
         Self {
             apk_path,
             current_dir,
-            exe_dir,
+            libs_dir,
             output_path,
         }
     }
@@ -126,13 +126,20 @@ impl Decompiler {
 
     fn create_jar(&self) -> Result<()> {
         self.msg("  Generating a jar file...");
-        Command::new("sh")
-            .arg(self.exe_dir.join("lib/dex2jar/d2j-dex2jar.sh"))
+        let output = Command::new("sh")
+            .arg(self.libs_dir.join("dex2jar/d2j-dex2jar.sh"))
             .arg("-f")
             .arg(&self.apk_path)
             .arg("-o")
             .arg(self.output_path.join("app.jar"))
             .output()?;
+        for line in output.stdout.lines() {
+            println!("Jar Creation stdout: {}", line?);
+        }
+        for line in output.stderr.lines() {
+            println!("Jar Creation stderr: {}", line?);
+        }
+        println!("Jar Creation status: {:?}", output.status);
 
         let rd = fs::read_dir(&self.current_dir)?;
 
@@ -165,7 +172,7 @@ impl Decompiler {
     fn decompile_jar(&self) -> Result<()> {
         self.msg("  Decompiling jar file...");
         let jar_file = self.output_path.join("app.jar");
-        Command::new(self.exe_dir.join("lib/jd/jd-cli"))
+        Command::new(self.libs_dir.join("jd/jd-cli"))
             .arg("-od")
             .arg(self.output_path.join("decompiled"))
             .arg(&jar_file)
@@ -176,7 +183,7 @@ impl Decompiler {
 
     fn extract_xml(&self) -> Result<()> {
         self.msg("  Managing output folder...");
-        Command::new(self.exe_dir.join("lib/apktool/apktool"))
+        Command::new(self.libs_dir.join("apktool/apktool"))
             .arg("d")
             .arg(&self.apk_path)
             .arg("-o")

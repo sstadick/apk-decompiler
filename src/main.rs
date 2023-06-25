@@ -19,11 +19,21 @@ fn main() {
                 .index(1)
                 .help("The path to your apk."),
         )
+        .arg(
+            Arg::with_name("libs_dir")
+                .long("libs-dir")
+                .short("l")
+                .takes_value(true)
+                .help("The path to the directory containing the libraries (ex: ./libs)."),
+        )
         .get_matches();
 
     let file_path = matches.value_of("file").unwrap();
     let apk_path = PathBuf::from(file_path);
-    let dec = Decompiler::new(apk_path);
+    let dec = Decompiler::new(
+        apk_path,
+        matches.value_of("libs_dir").unwrap().to_owned().into(),
+    );
 
     if let Err(e) = dec.start() {
         eprintln!("{}", style(format!("  Error: {}", e.to_string())).red());
